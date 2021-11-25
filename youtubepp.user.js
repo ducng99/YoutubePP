@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Youtube++
 // @namespace    maxhyt.youtubepp
-// @version      1.0.0.1
+// @version      1.0.2
 // @description  Add small features to Youtube
 // @author       Maxhyt
 // @match        https://www.youtube.com/*
@@ -13,7 +13,7 @@
     'use strict';
     
     setInterval(PatchLinks, 5000);
-    setInterval(ShowDislikes, 2000);
+    setInterval(ShowDislikes, 1000);
 
     function PatchLinks() {
         let links = document.body.querySelectorAll('a.yt-simple-endpoint.yt-formatted-string');
@@ -35,18 +35,23 @@
     
     async function ShowDislikes() {
         let match = /\/watch\?v=([a-zA-Z0-9-_]+)/.exec(window.location.href);
+        let likeText = document.body.querySelectorAll('a.yt-simple-endpoint > yt-formatted-string.ytd-toggle-button-renderer')[0];
         let dislikeText = document.body.querySelectorAll('a.yt-simple-endpoint > yt-formatted-string.ytd-toggle-button-renderer')[1];
-            
+        
         let likeBarContainer = document.body.querySelector('ytd-sentiment-bar-renderer');
         likeBarContainer.removeAttribute('hidden');
         
         if (match && match[1] && lastVidID !== match[1]) {
             lastVidID = match[1];
             
-            let res = await (await fetch(`https://www.googleapis.com/youtube/v3/videos?id=${match[1]}&key=<GOOGLE_API_KEY>&part=statistics`)).json();
-            let likeCount = parseInt(res.items[0].statistics.likeCount);
-            let dislikeCount = parseInt(res.items[0].statistics.dislikeCount);
+            dislikeText.innerHTML = "...";
+            let res = await (await fetch(`https://r0zmjt1mti.execute-api.ap-southeast-2.amazonaws.com/public/${match[1]}`)).json();
+            let likeCount = parseInt(res.likeCount);
+            let dislikeCount = parseInt(res.dislikeCount);
             dislikeText.innerHTML = formatNumber(dislikeCount);
+            
+            let likeBarWidth = likeText.parentNode.parentNode.getBoundingClientRect().width + dislikeText.parentNode.parentNode.getBoundingClientRect().width + 8;
+            likeBarContainer.style.width = `${likeBarWidth}px`;
             
             if (likeBarContainer) {
                 let likePerc = Math.floor(likeCount / (likeCount + dislikeCount) * 100);
