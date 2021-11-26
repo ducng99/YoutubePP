@@ -1,8 +1,7 @@
 // ==UserScript==
 // @name         Youtube++
 // @namespace    maxhyt.youtubepp
-// @version      1.0.3
-// @license      AGPL-3.0
+// @version      1.1.0
 // @description  Add small features to Youtube
 // @author       Maxhyt
 // @match        https://www.youtube.com/*
@@ -10,11 +9,10 @@
 // @grant        none
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
-    
+
     setInterval(PatchLinks, 5000);
-    setInterval(ShowDislikes, 1000);
 
     function PatchLinks() {
         let links = document.body.querySelectorAll('a.yt-simple-endpoint.yt-formatted-string');
@@ -31,53 +29,58 @@
 
         Promise.all(links);
     }
-    
-    let lastVidID = '';
-    
-    async function ShowDislikes() {
-        const match = /\/watch\?v=([a-zA-Z0-9-_]+)/.exec(window.location.href);
-        const likeText = document.body.querySelectorAll('a.yt-simple-endpoint > yt-formatted-string.ytd-toggle-button-renderer')[0];
-        const dislikeText = document.body.querySelectorAll('a.yt-simple-endpoint > yt-formatted-string.ytd-toggle-button-renderer')[1];
-        const dislikeTextDefault = dislikeText.innerHTML;
-        
-        const likeBarContainer = document.body.querySelector('ytd-sentiment-bar-renderer');
-        
-        if (match && match[1] && lastVidID !== match[1]) {
-            lastVidID = match[1];
-            
-            dislikeText.innerHTML = "...";
-            const res = await (await fetch(`https://r0zmjt1mti.execute-api.ap-southeast-2.amazonaws.com/public/${match[1]}`)).json();
-            const likeCount = parseInt(res.likeCount);
-            const dislikeCount = parseInt(res.dislikeCount);
-            
-            if (likeCount > -1 && dislikeCount > -1) {
-                dislikeText.innerHTML = formatNumber(dislikeCount);
-                likeBarContainer.removeAttribute('hidden');
 
-                const likeBarWidth = likeText.parentNode.parentNode.getBoundingClientRect().width + dislikeText.parentNode.parentNode.getBoundingClientRect().width + 8;
-                likeBarContainer.style.width = `${likeBarWidth}px`;
+    let likeCount = -1;
+    let dislikeCount = -1;
 
-                if (likeBarContainer) {
-                    const likePerc = Math.floor(likeCount / (likeCount + dislikeCount) * 100);
+    window.addEventListener('yt-page-data-updated', UpdateCounter);
 
-                    likeBarContainer.querySelector('#like-bar').style.width = `${likePerc}%`;
-                    const tooltip = likeBarContainer.querySelector('#tooltip');
-                    tooltip.innerHTML = `${likeCount.toLocaleString()} / ${dislikeCount.toLocaleString()}`;
+    UpdateCounter();
+    function UpdateCounter() {
+        const data = document.querySelector("ytd-app")?.data;
+        if (data) {
+            likeCount = parseInt(data.response.contents.twoColumnWatchNextResults.results.results.contents[0].videoPrimaryInfoRenderer.videoActions.menuRenderer.topLevelButtons[0].toggleButtonRenderer.accessibility.label.replace(/\D/g, ''));
 
-                    likeBarContainer.querySelector('#container').addEventListener('mouseover', () => {
-                        tooltip.classList.remove('hidden');
-                    });
-                    likeBarContainer.querySelector('#container').addEventListener('mouseleave', () => {
-                        tooltip.classList.add('hidden');
-                    });
-                }
-            }
-            else {
-                dislikeText.innerHTML = dislikeTextDefault;
-            }
+            const r = data.playerResponse.videoDetails.averageRating;
+            dislikeCount = Math.round(likeCount * (5 - r) / (r - 1));
+            ShowDislikes();
         }
     }
-    
+
+    function ShowDislikes() {
+        const likeText = document.body.querySelectorAll('a.yt-simple-endpoint > yt-formatted-string.ytd-toggle-button-renderer')[0];
+        const dislikeText = document.body.querySelectorAll('a.yt-simple-endpoint > yt-formatted-string.ytd-toggle-button-renderer')[1];
+        const dislikeTextDefault = dislikeText?.innerHTML ?? "Dislike";
+
+        const likeBarContainer = document.body.querySelector('ytd-sentiment-bar-renderer');
+
+        if (likeCount > -1 && dislikeCount > -1) {
+            dislikeText.innerHTML = formatNumber(dislikeCount);
+            likeBarContainer.removeAttribute('hidden');
+
+            const likeBarWidth = likeText.parentNode.parentNode.getBoundingClientRect().width + dislikeText.parentNode.parentNode.getBoundingClientRect().width + 8;
+            likeBarContainer.style.width = `${likeBarWidth}px`;
+
+            if (likeBarContainer) {
+                const likePerc = Math.floor(likeCount / (likeCount + dislikeCount) * 100);
+
+                likeBarContainer.querySelector('#like-bar').style.width = `${likePerc}%`;
+                const tooltip = likeBarContainer.querySelector('#tooltip');
+                tooltip.innerHTML = `${likeCount.toLocaleString()} / ${dislikeCount.toLocaleString()}`;
+
+                likeBarContainer.querySelector('#container').addEventListener('mouseover', () => {
+                    tooltip.classList.remove('hidden');
+                });
+                likeBarContainer.querySelector('#container').addEventListener('mouseleave', () => {
+                    tooltip.classList.add('hidden');
+                });
+            }
+        }
+        else {
+            dislikeText.innerHTML = dislikeTextDefault;
+        }
+    }
+
     function formatNumber(num) {
         if (num >= 1000000000) {
             let tmp = Math.floor(num / 100000000) / 10;
