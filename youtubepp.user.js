@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Youtube++
 // @namespace    maxhyt.youtubepp
-// @version      1.1.0
+// @version      1.1.1
 // @description  Add small features to Youtube
 // @author       Maxhyt
 // @license      AGPL-3.0
+// @homepage     https://github.com/ducng99/YoutubePP/
 // @match        https://www.youtube.com/*
 // @icon         https://icons.duckduckgo.com/ip2/youtube.com.ico
 // @grant        none
@@ -14,34 +15,51 @@
 (function () {
     'use strict';
 
-    setInterval(PatchLinks, 5000);
+    setInterval(PatchLinks, 500);
+    let ytLinkRegex = new RegExp(/\/redirect.*q=(.*)/);
 
     function PatchLinks() {
-        let links = document.body.querySelectorAll('a.yt-simple-endpoint.yt-formatted-string');
-        let regex = new RegExp(/https:\/\/www\.youtube\.com\/redirect.*q=(.*)/);
+        const link = document.body.querySelector('a[href^="https://www.youtube.com/redirect"]');
 
-        links = [...links].map(l => new Promise(resolve => {
-            let matches = regex.exec(l.href);
+        if (link) {
+            const matches = ytLinkRegex.exec(link.href);
             if (matches) {
-                l.href = decodeURIComponent(matches[1]);
+                link.href = decodeURIComponent(matches[1]);
             }
-
-            resolve();
-        }));
-
-        Promise.all(links);
+        }
     }
+    
+    let isLoaded = false;
 
     window.addEventListener('yt-page-data-updated', UpdateCounter);
+    window.addEventListener('load', () => {
+        isLoaded = true;
+    }, { once: true });
 
-    function UpdateCounter() {
+    async function UpdateCounter() {
+        while (!isLoaded) {
+            await Sleep(100);
+        }
+        
         const data = document.querySelector("ytd-app")?.data;
-        if (data) {
-            const likeCount = parseInt(data.response.contents.twoColumnWatchNextResults?.results.results.contents[0].videoPrimaryInfoRenderer?.videoActions.menuRenderer.topLevelButtons[0].toggleButtonRenderer.accessibility.label.replace(/\D/g, ''));
+        const contents = data?.response.contents.twoColumnWatchNextResults?.results.results.contents;
+        
+        if (data && contents) {
+            let videoInfo;
+            
+            for (const content of contents) {
+                if (content.videoPrimaryInfoRenderer) {
+                    videoInfo = content.videoPrimaryInfoRenderer;
+                    break;
+                }
+            }
+            
+            const likeCount = parseInt(videoInfo?.videoActions.menuRenderer.topLevelButtons[0].toggleButtonRenderer.accessibility.label.replace(/\D/g, ''));
 
-            if (likeCount > -1) {
+            if (likeCount >= 0) {
                 const r = data.playerResponse.videoDetails.averageRating;
                 const dislikeCount = Math.round(likeCount * (5 - r) / (r - 1));
+                
                 ShowDislikes(likeCount, dislikeCount);
             }
         }
@@ -75,20 +93,25 @@
     }
 
     function formatNumber(num) {
-        if (num >= 1000000000) {
-            let tmp = Math.floor(num / 100000000) / 10;
-            return `${tmp}B`;
+        if (num >= 1e9) {
+            const tmp = num >= 1e10 ? Math.floor(num / 1e9) : (Math.floor(num / 1e8) / 10);
+            return `${tmp.toLocaleString()}B`;
         }
-        else if (num >= 1000000) {
-            let tmp = Math.floor(num / 100000) / 10;
-            return `${tmp}M`;
+        if (num >= 1e6) {
+            const tmp = num >= 1e7 ? Math.floor(num / 1e6) : (Math.floor(num / 1e5) / 10);
+            return `${tmp.toLocaleString()}M`;
         }
-        else if (num >= 1000) {
-            let tmp = Math.floor(num / 1000);
-            return `${tmp}K`;
+        if (num >= 1e3) {
+            const tmp = num >= 1e4 ? Math.floor(num / 1e3) : (Math.floor(num / 1e2) / 10);
+            return `${tmp.toLocaleString()}K`;
         }
-        else {
-            return num;
-        }
+        
+        return num;
+    }
+    
+    function Sleep(timeout) {
+        return new Promise(resolve => {
+            setTimeout(() => resolve(), timeout);
+        });
     }
 })();
