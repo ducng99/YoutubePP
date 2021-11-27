@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Youtube++
 // @namespace    maxhyt.youtubepp
-// @version      1.1.1
+// @version      1.1.2
 // @description  Add small features to Youtube
 // @author       Maxhyt
 // @license      AGPL-3.0
@@ -30,11 +30,29 @@
     }
     
     let isLoaded = false;
+    let likeText, dislikeText;
+    let dislikeTextDefault = '';
+    let likeBarContainer, tooltip;
 
     window.addEventListener('yt-page-data-updated', UpdateCounter);
     window.addEventListener('load', () => {
         isLoaded = true;
-    }, { once: true });
+        
+        likeBarContainer = document.body.querySelector('ytd-sentiment-bar-renderer');
+        tooltip = likeBarContainer.querySelector('#tooltip');
+
+        likeBarContainer.querySelector('#container').addEventListener('mouseover', () => {
+            tooltip.classList.remove('hidden');
+        });
+        likeBarContainer.querySelector('#container').addEventListener('mouseleave', () => {
+            tooltip.classList.add('hidden');
+        });
+        
+        const buttons = document.body.querySelectorAll('a.yt-simple-endpoint > yt-formatted-string.ytd-toggle-button-renderer');
+        likeText = buttons[0];
+        dislikeText = buttons[1];
+        dislikeTextDefault = dislikeText.innerHTML;
+    });
 
     async function UpdateCounter() {
         while (!isLoaded) {
@@ -61,34 +79,25 @@
                 const dislikeCount = Math.round(likeCount * (5 - r) / (r - 1));
                 
                 ShowDislikes(likeCount, dislikeCount);
+                return;
             }
         }
+        
+        dislikeText.innerHTML = dislikeTextDefault;
     }
 
     function ShowDislikes(likeCount, dislikeCount) {
-        const likeText = document.body.querySelectorAll('a.yt-simple-endpoint > yt-formatted-string.ytd-toggle-button-renderer')[0];
-        const dislikeText = document.body.querySelectorAll('a.yt-simple-endpoint > yt-formatted-string.ytd-toggle-button-renderer')[1];
-        const likeBarContainer = document.body.querySelector('ytd-sentiment-bar-renderer');
-
         dislikeText.innerHTML = formatNumber(dislikeCount);
-        likeBarContainer.removeAttribute('hidden');
-
-        const likeBarWidth = likeText.parentNode.parentNode.getBoundingClientRect().width + dislikeText.parentNode.parentNode.getBoundingClientRect().width + 8;
-        likeBarContainer.style.width = `${likeBarWidth}px`;
 
         if (likeBarContainer) {
+            const likeBarWidth = likeText.parentNode.parentNode.getBoundingClientRect().width + dislikeText.parentNode.parentNode.getBoundingClientRect().width + 8;
+            likeBarContainer.style.width = `${likeBarWidth}px`;
+            likeBarContainer.removeAttribute('hidden');
+            
             const likePerc = Math.floor(likeCount / (likeCount + dislikeCount) * 100);
 
             likeBarContainer.querySelector('#like-bar').style.width = `${likePerc}%`;
-            const tooltip = likeBarContainer.querySelector('#tooltip');
             tooltip.innerHTML = `${likeCount.toLocaleString()} / ${dislikeCount.toLocaleString()}`;
-
-            likeBarContainer.querySelector('#container').addEventListener('mouseover', () => {
-                tooltip.classList.remove('hidden');
-            });
-            likeBarContainer.querySelector('#container').addEventListener('mouseleave', () => {
-                tooltip.classList.add('hidden');
-            });
         }
     }
 
