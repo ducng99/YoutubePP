@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Youtube++
 // @namespace    maxhyt.youtubepp
-// @version      1.1.2
+// @version      1.1.3
 // @description  Add small features to Youtube
 // @author       Maxhyt
 // @license      AGPL-3.0
@@ -35,7 +35,10 @@
     let likeBarContainer, tooltip;
 
     window.addEventListener('yt-page-data-updated', UpdateCounter);
-    window.addEventListener('load', () => {
+    
+    (async () => {
+        await WaitElementsLoaded("a.yt-simple-endpoint > yt-formatted-string.ytd-toggle-button-renderer");
+        
         isLoaded = true;
         
         likeBarContainer = document.body.querySelector('ytd-sentiment-bar-renderer');
@@ -52,7 +55,7 @@
         likeText = buttons[0];
         dislikeText = buttons[1];
         dislikeTextDefault = dislikeText.innerHTML;
-    });
+    })();
 
     async function UpdateCounter() {
         while (!isLoaded) {
@@ -116,6 +119,18 @@
         }
         
         return num;
+    }
+    
+    function WaitElementsLoaded(...elementsQueries) {
+        return Promise.all(elementsQueries.map(ele => {
+            return new Promise(async resolve => {
+                while (!document.querySelector(ele)) {
+                    await Sleep(100);
+                }
+                
+                resolve();
+            });
+        }));
     }
     
     function Sleep(timeout) {
