@@ -3,7 +3,7 @@ A simple script to add some features to YT
 
 ## Features
 - Remove links analytics
-- ~~(Re)Added likes/dislikes counter~~
+- Download photos from community posts
 
 ## Installation
 - Install [Tampermonkey](https://www.tampermonkey.net/) add-on
