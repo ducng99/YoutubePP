@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Youtube++
 // @namespace    maxhyt.youtubepp
-// @version      1.3
+// @version      1.3.1
 // @description  Add small features to Youtube
 // @author       Maxhyt
 // @license      AGPL-3.0
@@ -17,16 +17,12 @@
     // BEGIN - PATCH LINKS
     
     setInterval(PatchLinks, 500);
-    let ytLinkRegex = new RegExp(/\/redirect.*q=(.*)/);
 
     function PatchLinks() {
         const link = document.body.querySelector('a[href^="https://www.youtube.com/redirect"]');
 
         if (link) {
-            const matches = ytLinkRegex.exec(link.href);
-            if (matches) {
-                link.href = decodeURIComponent(matches[1]);
-            }
+            link.href = decodeURIComponent(new URL(link.href).searchParams.get('q'));
         }
     }
     
